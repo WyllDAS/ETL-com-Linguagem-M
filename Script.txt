@@ -1,0 +1,32 @@
+ Fonte = Csv.Document(File.Contents("C:\Users\wylld\Documents\DSA\Power BI - Data Science Academy\Cap 13 Manipulação de Dados com Linguagem M\Clientes.csv"),[Delimiter=",", Columns=10, Encoding=65001, QuoteStyle=QuoteStyle.None]),
+    #"Cabeçalhos Promovidos" = Table.PromoteHeaders(Fonte, [PromoteAllScalars=true]),
+    #"Tipo Alterado" = Table.TransformColumnTypes(#"Cabeçalhos Promovidos",{{"ID_Cliente", type text}, {"Idade", type text}, {"Peso", Int64.Type}, {"Altura", Int64.Type}, {"Estado Civil", type text}, {"Estado", type text}, {"Limite de Credito", Int64.Type}, {"Valor Desconto", Int64.Type}, {"Valor Compra", Int64.Type}, {"Tipo de Cliente", type text}}),
+
+    //Substituir valor
+    #"Valor Substituido" = Table.ReplaceValue(#"Tipo Alterado","?","45",Replacer.ReplaceText,{"Idade"}),
+
+    //AJustar tipo de Variavel
+    #"Tipo Ajustado" = Table.TransformColumnTypes(#"Valor Substituido", {{"Idade", Int64.Type}}),
+
+    //Remover Coluna
+    #"Remover Coluna" = Table.RemoveColumns(#"Tipo Ajustado", {"Estado Civil"}),
+
+    //Criar nova Coluna
+    #"Coluna Adicionada" =Table.AddColumn(#"Remover Coluna","Valor Final", each [Valor Compra] - [Valor Desconto]),
+
+    // Dividindo coluna
+    #"Dividir Coluna" = Table.SplitColumn(#"Coluna Adicionada", "ID_Cliente", Splitter.SplitTextByPositions({0, 4}, false), {"ID_Cliente.1", "ID_Cliente.2"}),
+    #"Tipo Alterado1" = Table.TransformColumnTypes(#"Dividir Coluna",{{"Valor Final", type number}}),
+    #"Coluna Dividida" = Table.TransformColumnTypes(#"Tipo Alterado1", {{"ID_Cliente.1", type text}, {"ID_Cliente.2", Int16.Type}}),
+
+    // Ajustar nome da coluna
+    #"Coluna Nomeada" = Table.RenameColumns(#"Coluna Dividida",{{"ID_Cliente.1", "Codigo"}, {"ID_Cliente.2", "ID"}}),
+
+    // Condicional
+    #"Coluna Condicional Adicionada" = Table.AddColumn(#"Coluna Nomeada", "% Desconto Especial", each if [Tipo de Cliente] = "Bronze" then 5 else if [Tipo de Cliente] = "Prata" then 10 else if [Tipo de Cliente] = "Ouro" then 15 else if [Tipo de Cliente] = "Diamante" then 20 else 0),
+
+    //Ajustar escala com transformação log
+    #"Logaritmo de base 10 Calculado" = Table.TransformColumns(#"Coluna Condicional Adicionada", {{"Limite de Credito", Number.Log10, type number}}),
+    #"Linhas Filtradas" = Table.SelectRows(#"Logaritmo de base 10 Calculado", each (not Number.IsNaN([Limite de Credito])))
+in
+    #"Linhas Filtradas"
